@@ -1,0 +1,31 @@
+[package]
+name = "kanji_practice_sheet"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+utf16string = "0.2.0"
+image = "0.23.14"
+svg = "0.10.0"
+tiny-skia = "0.6.1"
+resvg = "0.23.0"
+usvg = "0.23.0"
+xmlwriter = "0.1.0"
+
+[[bin]]
+name = "kanji_practice_sheet"
+path = "src/main.rs"
+
+[lib]
+name = "kanji_practice_sheet"
+path = "src/lib.rs"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+
+[profile.test]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
