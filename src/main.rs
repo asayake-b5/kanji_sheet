@@ -22,31 +22,34 @@ enum Commands {
     Cli {
         //TODO interactive mode?
         kanjis: String,
+        #[clap(short, long)]
+        pdf: bool,
+        #[clap(short, long, default_value_t = true)]
+        files: bool,
     },
 }
 
-fn string_to_png(list: &str) {
+fn process(kanjis: &str, pdf: bool, files: bool) {
     let mut pages = Pages::default();
     pages.add_page();
 
-    for kanji in list.chars() {
+    for kanji in kanjis.chars() {
         kanji_to_png(&mut pages, &kanji_to_filename(kanji));
     }
-    pages.save_pages(list);
-    create_pdf(&pages, list);
+    if files {
+        pages.save_pages(kanjis);
+    }
+    if pdf {
+        create_pdf(&pages, kanjis);
+    }
 }
 
 fn main() {
     let args = Args::parse();
     match args.command {
         Commands::Server {} => {}
-        Commands::Cli { kanjis } => {
-            // if let Some(k) = kanjis.chars().nth(0) {
-            let now = std::time::Instant::now();
-            string_to_png(&kanjis);
-            // kanji_to_png(&kanji_to_filename(k));
-            println!("{:?}", now.elapsed());
-            // }
+        Commands::Cli { kanjis, pdf, files } => {
+            process(&kanjis, pdf, files);
         }
     };
 }
