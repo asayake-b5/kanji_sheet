@@ -12,6 +12,7 @@ resvg = "0.23.0"
 usvg = "0.23.0"
 xmlwriter = "0.1.0"
 clap = { version = "3.2.8", features = ["derive"] } # Argument Parsing
+genpdf = { version = "0.2.0", features = ["images"] }
 
 [[bin]]
 name = "kanji_practice_sheet"

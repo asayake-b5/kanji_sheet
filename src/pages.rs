@@ -12,7 +12,7 @@ pub struct Pages {
     x: u32,
     y: u32,
     layer: usize,
-    imgs: Vec<DynamicImage>,
+    pub imgs: Vec<DynamicImage>,
 }
 
 impl Pages {

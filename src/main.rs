@@ -1,6 +1,8 @@
 use clap::{Parser, Subcommand};
 use kanji_practice_sheet::{
-    arg_parsing::kanji_to_filename, pages::Pages, pdf_creation::kanji_to_png,
+    arg_parsing::kanji_to_filename,
+    pages::Pages,
+    pdf_creation::{create_pdf, kanji_to_png},
 };
 
 #[derive(Parser)]
@@ -31,6 +33,7 @@ fn string_to_png(list: &str) {
         kanji_to_png(&mut pages, &kanji_to_filename(kanji));
     }
     pages.save_pages(list);
+    create_pdf(&pages, list);
 }
 
 fn main() {

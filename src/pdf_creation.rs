@@ -82,4 +82,17 @@ pub fn kanji_to_png(pages: &mut Pages, path: &str) {
     pages.new_line(20);
 }
 
-pub fn create_pdf() {}
+pub fn create_pdf(pages: &Pages, list: &str) {
+    let font_family = genpdf::fonts::from_files("./assets/font/", "Courier", None).unwrap();
+    let mut doc = genpdf::Document::new(font_family);
+    doc.set_title(list);
+    for img in &pages.imgs {
+        let rgb8 = image::DynamicImage::ImageRgb8(img.to_rgb8());
+        doc.push(
+            genpdf::elements::Image::from_dynamic_image(rgb8)
+                .unwrap()
+                .with_dpi(160.0),
+        );
+    }
+    doc.render_to_file(&format!("out/{}.pdf", list)).unwrap();
+}
