@@ -1,5 +1,7 @@
 use clap::{Parser, Subcommand};
-use kanji_practice_sheet::{arg_parsing::kanji_to_filename, pdf_creation::kanji_to_png};
+use kanji_practice_sheet::{
+    arg_parsing::kanji_to_filename, pages::Pages, pdf_creation::kanji_to_png,
+};
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -20,6 +22,17 @@ enum Commands {
         kanjis: String,
     },
 }
+
+fn string_to_png(list: &str) {
+    let mut pages = Pages::default();
+    pages.add_page();
+
+    for kanji in list.chars() {
+        kanji_to_png(&mut pages, &kanji_to_filename(kanji));
+    }
+    pages.save_pages(list);
+}
+
 fn main() {
     let args = Args::parse();
     match args.command {

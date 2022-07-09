@@ -1,35 +1,10 @@
 use usvg::{Align, AspectRatio, Color, Opacity, Rect, Size, Stroke, StrokeMiterlimit, StrokeWidth};
 
-const BYTES: &[u8] = include_bytes!("../assets/kanji_sheet.png");
-// TODO will be changed, in the future
-// also, need like a neew sheet with everything 109 apart
-const X_OFFSET: u32 = 19;
-const Y_OFFSET: u32 = 17;
+use crate::pages::Pages;
 
-const VIEWBOX_U: u32 = 109;
-const VIEWBOX_F: f64 = 109.0;
-
-const N_SQUARE_PER_PAGE: u32 = 165;
-const N_SQUARE_PER_LINE: u32 = 11;
-
-/// slot => (x, y, z (layer))
-pub fn calculate_top_left(n: u32) -> (u32, u32, u32) {
-    let layer = n / N_SQUARE_PER_PAGE;
-    let n2 = n - N_SQUARE_PER_PAGE * layer;
-    let y_n = n2 / N_SQUARE_PER_LINE;
-    let x_n = n2 % N_SQUARE_PER_LINE;
-
-    // let x = X_OFFSET + x_n * VIEWBOX_U;
-    // let y = Y_OFFSET + y_n * VIEWBOX_U;
-    let x = X_OFFSET + x_n * 113;
-    let y = Y_OFFSET + y_n * 113;
-
-    (x, y, layer)
-}
-
-pub fn kanji_to_png(path: &str) {
-    let mut img = image::load_from_memory_with_format(BYTES, image::ImageFormat::Png).unwrap();
-
+pub fn kanji_to_png(pages: &mut Pages, path: &str) {
+    let grid =
+        image::load_from_memory_with_format(Pages::BYTES_GRID, image::ImageFormat::Png).unwrap();
     // let svg_data = std::fs::read("assets/svg/04eee.svg").unwrap();
     let svg_data = std::fs::read(path).unwrap();
     let mut opt = usvg::Options::default();
@@ -38,9 +13,9 @@ pub fn kanji_to_png(path: &str) {
 
     // These unwraps should be okay, we're using handwritten stuff anyway
     let tree2 = usvg::Tree::create(usvg::Svg {
-        size: Size::new(VIEWBOX_F, VIEWBOX_F).unwrap(),
+        size: Size::new(Pages::VIEWBOX_F, Pages::VIEWBOX_F).unwrap(),
         view_box: usvg::ViewBox {
-            rect: Rect::new(0.0, 0.0, VIEWBOX_F, VIEWBOX_F).unwrap(),
+            rect: Rect::new(0.0, 0.0, Pages::VIEWBOX_F, Pages::VIEWBOX_F).unwrap(),
             aspect: AspectRatio {
                 // ??? to all three
                 defer: false,
@@ -50,7 +25,7 @@ pub fn kanji_to_png(path: &str) {
         },
     });
 
-    let mut i = 0;
+    pages.draw_full_opaque(&svg_data, 1);
 
     for mut node in rtree.root().descendants() {
         tree2.root().append(node.make_copy());
@@ -81,14 +56,30 @@ pub fn kanji_to_png(path: &str) {
             )
             .unwrap();
             let svg_img =
-                image::ImageBuffer::from_raw(VIEWBOX_U, VIEWBOX_U, pixmap.data()).unwrap();
-            let (x, y, _) = calculate_top_left(i);
-            image::imageops::overlay(&mut img, &svg_img, x, y);
-
-            i += 1;
+                image::ImageBuffer::from_raw(Pages::VIEWBOX_U, Pages::VIEWBOX_U, pixmap.data())
+                    .unwrap();
+            // let (x, y, layer) = calculate_top_left(*n);
+            // image::imageops::overlay(&mut imgs[layer], &grid, x, y);
+            // image::imageops::overlay(&mut pages.imgs[0], &svg_img, 3, 3);
+            pages.draw_svg(&grid, &svg_img);
         }
     }
-    img.save("test.png").unwrap();
+
+    let pixmap_size = tree2.svg_node().size.to_screen_size();
+    let mut pixmap = tiny_skia::Pixmap::new(pixmap_size.width(), pixmap_size.height()).unwrap();
+    resvg::render(
+        &tree2,
+        usvg::FitTo::Original,
+        tiny_skia::Transform::default(),
+        pixmap.as_mut(),
+    )
+    .unwrap();
+    let svg_img =
+        image::ImageBuffer::from_raw(Pages::VIEWBOX_U, Pages::VIEWBOX_U, pixmap.data()).unwrap();
+    pages.fill_line(&grid, &svg_img);
+
+    pages.draw_clean_squares(Pages::N_SQUARE_PER_LINE);
+    pages.new_line(20);
 }
 
 pub fn create_pdf() {}
