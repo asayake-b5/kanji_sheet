@@ -21,24 +21,24 @@ impl Pages {
     pub const BLANK_BYTES: &'static [u8] = include_bytes!("../assets/box_empty.png");
     pub const WIDTH: u32 = 1_303;
     pub const HEIGHT: u32 = 1_887;
-    pub const X_OFFSET: u32 = 19;
-    pub const Y_OFFSET: u32 = 17;
+    pub const X_OFFSET: u32 = 60;
+    pub const Y_OFFSET: u32 = 60;
     pub const VIEWBOX_U: u32 = 109;
     pub const VIEWBOX_F: f64 = 109.0;
 
     pub const N_SQUARE_PER_PAGE: u32 = 165;
-    pub const N_SQUARE_PER_LINE: u32 = 11;
+    pub const N_SQUARE_PER_LINE: u32 = 10;
 
     //TODO test this function
     fn next(&mut self) {
         self.x += 114;
         // if out of bounds change the bounds
-        if self.x + 114 > Pages::WIDTH {
+        if self.x + 114 > Pages::WIDTH - Pages::X_OFFSET {
             // new line
             self.x = Pages::X_OFFSET;
             self.y += 114;
         }
-        if self.y + 114 > Pages::HEIGHT {
+        if self.y + 114 > Pages::HEIGHT - Pages::Y_OFFSET {
             // new page
             self.x = Pages::X_OFFSET;
             self.y = Pages::Y_OFFSET;
@@ -52,11 +52,11 @@ impl Pages {
         let x_temp = self.x + 114;
         let mut y_temp = self.y;
 
-        if x_temp + 114 > Pages::WIDTH {
+        if x_temp + 114 > Pages::WIDTH - Pages::X_OFFSET {
             y_temp += 114;
             o = Overflow::ChangedLine;
         }
-        if y_temp + 114 > Pages::HEIGHT {
+        if y_temp + 114 > Pages::HEIGHT - Pages::Y_OFFSET {
             o = Overflow::ChangedPage;
         }
 
