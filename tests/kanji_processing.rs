@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
 
-use kanji_practice_sheet::arg_parsing::kanji_to_filename;
+use kanji_practice_sheet::arg_parsing::{kanji_to_filename, kanji_to_hexcode};
 use usvg::PathData;
 
 #[test]
@@ -9,6 +9,18 @@ fn test_get_path() {
     let kanji_2 = kanji_to_filename('淌');
     assert_eq!(kanji_1, String::from("assets/svg/26951.svg"));
     assert_eq!(kanji_2, String::from("assets/svg/06dcc.svg"));
+}
+
+#[test]
+fn test_get_path_all() {
+    let all = std::fs::read_to_string("./assets/all_kanji.txt").unwrap();
+    for c in all.chars() {
+        let path = kanji_to_filename(c);
+        let path = std::path::Path::new(&path);
+        if path.exists() {
+            println!("{c}:{}", kanji_to_hexcode(c));
+        }
+    }
 }
 
 #[test]

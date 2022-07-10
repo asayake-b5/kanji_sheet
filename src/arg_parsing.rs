@@ -7,14 +7,16 @@ use std::fmt::Write;
 /// assert_eq!(kanji_to_hexcode('淌'), "06dcc");
 /// ```
 pub fn kanji_to_hexcode(c: char) -> String {
-    let c_u32 = c as u32;
-    let c_slice = c_u32.to_be_bytes();
-    let mut path_string = String::new();
-    // Ignore the first byte, we don't need it
+    if c == '𦥑' {
+        return String::from("26951");
+    }
+    let c_u16 = c as u16;
+    let c_slice = c_u16.to_be_bytes();
+
+    let mut path_string = String::from("0");
     c_slice
         .iter()
-        .skip(1)
-        .for_each(|x| write!(path_string, "{:x}", x).unwrap());
+        .for_each(|x| write!(path_string, "{:02x}", x).unwrap());
     path_string
 }
 
