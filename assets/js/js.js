@@ -9,8 +9,9 @@ document.addEventListener('DOMContentLoaded', () => {
       mode: 'same-origin',
       body: JSON.stringify({ kanjis: form.elements.kanjis.value }),
     })
-      .then((resp) => resp.text()).then((resp) => {
-        console.log(resp);
+      .then((resp) => resp.blob()).then((blob) => {
+        const file = window.URL.createObjectURL(blob);
+        window.location.assign(file);
       }).catch((err) => console.log(err));
     e.preventDefault();
   });

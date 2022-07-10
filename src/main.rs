@@ -1,3 +1,8 @@
+use std::{
+    io::{Cursor, Read, Write},
+    path::Path,
+};
+
 use actix_files::Files;
 use actix_web::{
     http::header::ContentType, web, App, HttpRequest, HttpResponse, HttpServer, Responder,
@@ -9,6 +14,7 @@ use kanji_practice_sheet::{
     pdf_creation::{create_pdf, kanji_to_png},
 };
 use serde::Deserialize;
+use zip::{write::FileOptions, CompressionMethod};
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -54,14 +60,58 @@ struct Test {
     kanjis: String,
 }
 
+async fn compress(kanji: &str) -> std::io::Result<Vec<u8>> {
+    let buf = Cursor::new(Vec::new());
+    let mut zip = zip::ZipWriter::new(buf);
+    let options = FileOptions::default()
+        .compression_method(CompressionMethod::Stored)
+        .unix_permissions(0o755);
+
+    let mut buffer = Vec::new();
+    for entry in std::fs::read_dir(&format!("./out/{kanji}"))? {
+        let entry = entry?;
+        let path = entry.path();
+        let name = path.strip_prefix(Path::new("./out/")).unwrap();
+
+        // Write file or directory explicitly
+        // Some unzip tools unzip files with directory paths correctly, some do not!
+        if path.is_file() {
+            // println!("adding file {:?} as {:?} ...", path, name);
+            // #[allow(deprecated)]
+            // zip.start_file_from_path(name, options)?;
+            zip.start_file(name.as_os_str().to_string_lossy().to_string(), options)
+                .unwrap();
+            let mut f = std::fs::File::open(path)?;
+
+            f.read_to_end(&mut buffer)?;
+            zip.write_all(&buffer)?;
+            buffer.clear();
+        }
+
+        // } /*/*/else if !name.as_os_str().is_empty() {
+        //     #[allow(deprecated)]
+        //     zip.add_directory_from_path(name, options)?;
+        // }
+    }
+    let writer = zip.finish()?;
+    Ok(writer.into_inner())
+}
+
 async fn process_web(_: HttpRequest, test: web::Json<Test>) -> impl Responder {
     dbg!(&test);
     let time = std::time::Instant::now();
     process(&test.kanjis, false, true);
-    let time = time.elapsed();
+    println!("processed in {:?}", time.elapsed());
+    let data = compress(&test.kanjis).await.unwrap();
+    // let data = std::fs::read("./out/知春.zip").unwrap();
+
     HttpResponse::Ok()
-        .content_type(ContentType::plaintext())
-        .body(format!("processed in {:?}", time))
+        // .content_type(ContentType::plaintext())
+        .insert_header(("Content-Type", "application/zip"))
+        // .content_type(mime::APPLICATION)
+        // .body(format!("processed in {:?}", time))
+        // .body(std::fs::read(&format!("./out/{}/page-0.png", test.kanjis)).unwrap())
+        .body(data)
 }
 
 async fn homepage(_: HttpRequest) -> impl Responder {
