@@ -1,3 +1,4 @@
+use actix_files::Files;
 use actix_web::{
     http::header::ContentType, web, App, HttpRequest, HttpResponse, HttpServer, Responder,
 };
@@ -62,6 +63,32 @@ async fn process_web(_: HttpRequest, test: web::Json<Test>) -> impl Responder {
         .content_type(ContentType::plaintext())
         .body(format!("processed in {:?}", time))
 }
+
+async fn homepage(_: HttpRequest) -> impl Responder {
+    HttpResponse::Ok().content_type(ContentType::html()).body(
+        r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <title>Kanji Sheet Generator</title>
+</head>
+<script src="assets/js/js.js"></script>
+<body>
+<form id="kanjis" action="">
+  <div class="form-example">
+    <label for="email">Enter your email: </label>
+    <input type="text" name="kanjis" id="kanjis" required>
+  </div>
+  <div class="form-example">
+    <input type="submit" value="Generate">
+  </div>
+</form>
+</body>
+</html>"#
+            .to_string(),
+    )
+}
+
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     let args = Args::parse();
@@ -70,6 +97,8 @@ async fn main() -> std::io::Result<()> {
             HttpServer::new(|| {
                 App::new()
                     .route("/api/process/", web::post().to(process_web))
+                    .route("/", web::get().to(homepage))
+                    .service(Files::new("/assets", "./assets/"))
             })
             .bind("127.0.0.1:8000")?
             .run()
