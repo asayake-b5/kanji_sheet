@@ -1,9 +1,13 @@
+use actix_web::{
+    http::header::ContentType, web, App, HttpRequest, HttpResponse, HttpServer, Responder,
+};
 use clap::{Parser, Subcommand};
 use kanji_practice_sheet::{
     arg_parsing::kanji_to_filename,
     pages::Pages,
     pdf_creation::{create_pdf, kanji_to_png},
 };
+use serde::Deserialize;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -44,12 +48,36 @@ fn process(kanjis: &str, pdf: bool, files: bool) {
     }
 }
 
-fn main() {
+#[derive(Debug, Deserialize)]
+struct Test {
+    kanjis: String,
+}
+
+async fn process_web(_: HttpRequest, test: web::Json<Test>) -> impl Responder {
+    dbg!(&test);
+    let time = std::time::Instant::now();
+    process(&test.kanjis, false, true);
+    let time = time.elapsed();
+    HttpResponse::Ok()
+        .content_type(ContentType::plaintext())
+        .body(format!("processed in {:?}", time))
+}
+#[tokio::main]
+async fn main() -> std::io::Result<()> {
     let args = Args::parse();
     match args.command {
-        Commands::Server {} => {}
+        Commands::Server {} => {
+            HttpServer::new(|| {
+                App::new()
+                    .route("/api/process/", web::post().to(process_web))
+            })
+            .bind("127.0.0.1:8000")?
+            .run()
+            .await
+        }
         Commands::Cli { kanjis, pdf, files } => {
             process(&kanjis, pdf, files);
+            Ok(())
         }
-    };
+    }
 }
