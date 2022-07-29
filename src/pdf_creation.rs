@@ -6,6 +6,7 @@ pub fn kanji_to_png(pages: &mut Pages, path: &str) {
     let grid =
         image::load_from_memory_with_format(Pages::BYTES_GRID, image::ImageFormat::Png).unwrap();
     // let svg_data = std::fs::read("assets/svg/04eee.svg").unwrap();
+    // TODO fix this unwrap, return result, api returns which kanji were skipped
     let svg_data = std::fs::read(path).unwrap();
     let mut opt = usvg::Options::default();
     opt.fontdb.load_system_fonts();
@@ -45,6 +46,7 @@ pub fn kanji_to_png(pages: &mut Pages, path: &str) {
                     linejoin: usvg::LineJoin::Round,
                 });
             }
+            // costs 1microsecond perd run, don't optimize
             let pixmap_size = tree2.svg_node().size.to_screen_size();
             let mut pixmap =
                 tiny_skia::Pixmap::new(pixmap_size.width(), pixmap_size.height()).unwrap();
