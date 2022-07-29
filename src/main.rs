@@ -92,21 +92,24 @@ fn create_pages(kanjis: &str) -> Pages {
 
 async fn process_web(_: HttpRequest, req: web::Json<KanjiRequest>) -> impl Responder {
     dbg!(&req);
+    let kanjis = req
+        .kanjis
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect::<String>();
     let time = std::time::Instant::now();
-    let pages = create_pages(&req.kanjis);
+    let pages = create_pages(&kanjis);
     println!("processed in {:?}", time.elapsed());
     let (content_type, data) = if req.pdf && !req.png {
-        create_pdf(&pages, &req.kanjis);
+        create_pdf(&pages, &kanjis);
         let mut b = Vec::with_capacity(20000);
-        let mut file = std::fs::File::open(&format!("out/{}.pdf", &req.kanjis)).unwrap();
+        let mut file = std::fs::File::open(&format!("out/{}.pdf", &kanjis)).unwrap();
         file.read_to_end(&mut b).unwrap();
         ("application/pdf", b)
     } else {
         (
             "application/zip",
-            compress(&pages, req.pdf, req.png, &req.kanjis)
-                .await
-                .unwrap(),
+            compress(&pages, req.pdf, req.png, &kanjis).await.unwrap(),
         )
     };
 
