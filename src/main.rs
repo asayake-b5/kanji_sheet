@@ -95,13 +95,25 @@ async fn process_web(_: HttpRequest, req: web::Json<KanjiRequest>) -> impl Respo
     let time = std::time::Instant::now();
     let pages = create_pages(&req.kanjis);
     println!("processed in {:?}", time.elapsed());
-    let data = compress(&pages, req.pdf, req.png, &req.kanjis)
-        .await
-        .unwrap();
+    let (content_type, data) = if req.pdf && !req.png {
+        create_pdf(&pages, &req.kanjis);
+        let mut b = Vec::with_capacity(20000);
+        let mut file = std::fs::File::open(&format!("out/{}.pdf", &req.kanjis)).unwrap();
+        file.read_to_end(&mut b).unwrap();
+        ("application/pdf", b)
+    } else {
+        (
+            "application/zip",
+            compress(&pages, req.pdf, req.png, &req.kanjis)
+                .await
+                .unwrap(),
+        )
+    };
+
     println!("zip in {:?}", time.elapsed());
 
     HttpResponse::Ok()
-        .insert_header(("Content-Type", "application/zip"))
+        .insert_header(("Content-Type", content_type))
         .insert_header(("Access-Control-Allow-Origin", "*"))
         .body(data)
 }
