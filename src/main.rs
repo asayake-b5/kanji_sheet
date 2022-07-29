@@ -1,13 +1,12 @@
-use std::{
-    io::{Cursor, Read, Write},
-    path::Path,
-};
+use std::io::{Cursor, Read, Write};
 
+use actix_cors::Cors;
 use actix_files::Files;
 use actix_web::{
     http::header::ContentType, web, App, HttpRequest, HttpResponse, HttpServer, Responder,
 };
 use clap::{Parser, Subcommand};
+use image::ImageOutputFormat;
 use kanji_practice_sheet::{
     arg_parsing::kanji_to_filename,
     pages::Pages,
@@ -40,77 +39,70 @@ enum Commands {
     },
 }
 
-fn process(kanjis: &str, pdf: bool, files: bool) {
-    let mut pages = Pages::default();
-    pages.add_page();
-
-    for kanji in kanjis.chars() {
-        kanji_to_png(&mut pages, &kanji_to_filename(kanji));
-    }
-    if files {
-        pages.save_pages(kanjis);
-    }
-    if pdf {
-        create_pdf(&pages, kanjis);
-    }
-}
-
 #[derive(Debug, Deserialize)]
-struct Test {
+struct KanjiRequest {
     kanjis: String,
+    pdf: bool,
+    png: bool,
+    opt_space: bool,
+    _coloring: Option<String>, // TODO can serde do this as enum?
 }
 
-async fn compress(kanji: &str) -> std::io::Result<Vec<u8>> {
+async fn compress(pages: &Pages, pdf: bool, png: bool, kanjis: &str) -> std::io::Result<Vec<u8>> {
     let buf = Cursor::new(Vec::new());
     let mut zip = zip::ZipWriter::new(buf);
     let options = FileOptions::default()
         .compression_method(CompressionMethod::Stored)
         .unix_permissions(0o755);
 
-    let mut buffer = Vec::new();
-    for entry in std::fs::read_dir(&format!("./out/{kanji}"))? {
-        let entry = entry?;
-        let path = entry.path();
-        let name = path.strip_prefix(Path::new("./out/")).unwrap();
-
-        // Write file or directory explicitly
-        // Some unzip tools unzip files with directory paths correctly, some do not!
-        if path.is_file() {
-            // println!("adding file {:?} as {:?} ...", path, name);
-            // #[allow(deprecated)]
-            // zip.start_file_from_path(name, options)?;
-            zip.start_file(name.as_os_str().to_string_lossy().to_string(), options)
-                .unwrap();
-            let mut f = std::fs::File::open(path)?;
-
-            f.read_to_end(&mut buffer)?;
-            zip.write_all(&buffer)?;
-            buffer.clear();
+    if png {
+        // TODO skip the last, check if last is blank, save if not
+        let mut b = Vec::with_capacity(505728);
+        for (i, page) in pages.imgs.iter().enumerate() {
+            page.write_to(&mut b, ImageOutputFormat::Png).unwrap();
+            zip.start_file(format!("page-{i}.png"), options).unwrap();
+            zip.write_all(&b)?;
+            b.clear();
         }
-
-        // } /*/*/else if !name.as_os_str().is_empty() {
-        //     #[allow(deprecated)]
-        //     zip.add_directory_from_path(name, options)?;
-        // }
     }
+
+    // PDF won't let us write to bufferrr
+    if pdf {
+        create_pdf(pages, kanjis);
+        zip.start_file("result.pdf", options)?;
+        let mut b = Vec::with_capacity(20000);
+        let mut file = std::fs::File::open(&format!("out/{kanjis}.pdf")).unwrap();
+        file.read_to_end(&mut b)?;
+        zip.write_all(&b)?;
+    }
+
     let writer = zip.finish()?;
     Ok(writer.into_inner())
 }
 
-async fn process_web(_: HttpRequest, test: web::Json<Test>) -> impl Responder {
-    dbg!(&test);
+fn create_pages(kanjis: &str) -> Pages {
+    let mut pages = Pages::default();
+    pages.add_page();
+
+    for kanji in kanjis.chars() {
+        kanji_to_png(&mut pages, &kanji_to_filename(kanji));
+    }
+    pages
+}
+
+async fn process_web(_: HttpRequest, req: web::Json<KanjiRequest>) -> impl Responder {
+    dbg!(&req);
     let time = std::time::Instant::now();
-    process(&test.kanjis, false, true);
+    let pages = create_pages(&req.kanjis);
     println!("processed in {:?}", time.elapsed());
-    let data = compress(&test.kanjis).await.unwrap();
-    // let data = std::fs::read("./out/知春.zip").unwrap();
+    let data = compress(&pages, req.pdf, req.png, &req.kanjis)
+        .await
+        .unwrap();
+    println!("zip in {:?}", time.elapsed());
 
     HttpResponse::Ok()
-        // .content_type(ContentType::plaintext())
         .insert_header(("Content-Type", "application/zip"))
-        // .content_type(mime::APPLICATION)
-        // .body(format!("processed in {:?}", time))
-        // .body(std::fs::read(&format!("./out/{}/page-0.png", test.kanjis)).unwrap())
+        .insert_header(("Access-Control-Allow-Origin", "*"))
         .body(data)
 }
 
@@ -155,7 +147,13 @@ async fn main() -> std::io::Result<()> {
             .await
         }
         Commands::Cli { kanjis, pdf, files } => {
-            process(&kanjis, pdf, files);
+            let pages = create_pages(&kanjis);
+            if files {
+                pages.save_pages(&kanjis);
+            }
+            if pdf {
+                create_pdf(&pages, &kanjis);
+            }
             Ok(())
         }
     }
