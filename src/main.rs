@@ -1,4 +1,7 @@
-use std::io::{Cursor, Read, Write};
+use std::{
+    future,
+    io::{Cursor, Read, Write},
+};
 
 use actix_cors::Cors;
 use actix_files::Files;
@@ -148,22 +151,24 @@ async fn homepage(_: HttpRequest) -> impl Responder {
 }
 
 #[tokio::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> std::result::Result<(), std::io::Error> {
     let args = Args::parse();
     match args.command {
         Commands::Server {} => {
-            HttpServer::new(|| {
             let port = find_free_port().expect("Couldn't find any port to bind to.");
             println!("Binding to 127.0.0.1:{port}");
             let url = format!("127.0.0.1:{port}");
+            let server_future = HttpServer::new(|| {
                 App::new()
                     .route("/api/process/", web::post().to(process_web))
                     .route("/", web::get().to(homepage))
                     .service(Files::new("/assets", "./assets/"))
             })
-            .run()
-            .await
             .bind(&url)?
+            .run();
+            let (result, _) =
+                tokio::join!(server_future, kanji_practice_sheet::launch_browser(&url));
+            result
         }
         Commands::Cli { kanjis, pdf, files } => {
             let pages = create_pages(&kanjis);
