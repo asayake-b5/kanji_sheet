@@ -9,6 +9,7 @@ use clap::{Parser, Subcommand};
 use image::ImageOutputFormat;
 use kanji_practice_sheet::{
     arg_parsing::kanji_to_filename,
+    find_free_port,
     pages::Pages,
     pdf_creation::{create_pdf, kanji_to_png},
 };
@@ -152,14 +153,17 @@ async fn main() -> std::io::Result<()> {
     match args.command {
         Commands::Server {} => {
             HttpServer::new(|| {
+            let port = find_free_port().expect("Couldn't find any port to bind to.");
+            println!("Binding to 127.0.0.1:{port}");
+            let url = format!("127.0.0.1:{port}");
                 App::new()
                     .route("/api/process/", web::post().to(process_web))
                     .route("/", web::get().to(homepage))
                     .service(Files::new("/assets", "./assets/"))
             })
-            .bind("127.0.0.1:8000")?
             .run()
             .await
+            .bind(&url)?
         }
         Commands::Cli { kanjis, pdf, files } => {
             let pages = create_pages(&kanjis);
