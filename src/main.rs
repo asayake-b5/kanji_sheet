@@ -29,6 +29,8 @@ struct Args {
 enum Commands {
     /// Start the webserver
     Server {},
+    /// Start the webserver and browser
+    ServerLocal {},
     /// Use the generator directly
     #[clap(arg_required_else_help = true)]
     Cli {
@@ -164,10 +166,11 @@ async fn homepage(_: HttpRequest) -> impl Responder {
 async fn main() -> std::result::Result<(), std::io::Error> {
     let args = Args::parse();
     match args.command {
-        Commands::Server {} => {
+        Commands::ServerLocal {} => {
             let port = find_free_port().expect("Couldn't find any port to bind to.");
             println!("Binding to 127.0.0.1:{port}");
             let url = format!("127.0.0.1:{port}");
+
             let server_future = HttpServer::new(|| {
                 App::new()
                     .route("/api/process/", web::post().to(process_web))
@@ -194,6 +197,21 @@ async fn main() -> std::result::Result<(), std::io::Error> {
                 create_pdf(&pages, &kanjis);
             }
             Ok(())
+        }
+        Commands::Server {} => {
+            let port = find_free_port().expect("Couldn't find any port to bind to.");
+            println!("Binding to 127.0.0.1:{port}");
+            let url = format!("127.0.0.1:{port}");
+
+            HttpServer::new(|| {
+                App::new()
+                    .route("/api/process/", web::post().to(process_web))
+                    .route("/", web::get().to(homepage))
+                    .service(Files::new("/assets", "./assets/"))
+            })
+            .bind(&url)?
+            .run()
+            .await
         }
     }
 }
