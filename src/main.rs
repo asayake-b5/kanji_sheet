@@ -15,6 +15,7 @@ use kanji_practice_sheet::{
     find_free_port,
     pages::Pages,
     pdf_creation::{create_pdf, kanji_to_png},
+    KanjiToPngErrors,
 };
 use serde::Deserialize;
 use zip::{write::FileOptions, CompressionMethod};
@@ -87,9 +88,14 @@ async fn compress(pages: &Pages, pdf: bool, png: bool, kanjis: &str) -> std::io:
 fn create_pages(kanjis: &str) -> Pages {
     let mut pages = Pages::default();
     pages.add_page();
+    let mut skipped_kanji = Vec::<char>::with_capacity(10);
 
     for kanji in kanjis.chars() {
-        kanji_to_png(&mut pages, &kanji_to_filename(kanji));
+        if let Err(e) = kanji_to_png(&mut pages, &kanji_to_filename(kanji)) {
+            if e == KanjiToPngErrors::FileNotFound {
+                skipped_kanji.push(kanji);
+            }
+        }
     }
     pages
 }

@@ -1,16 +1,22 @@
 use usvg::{Align, AspectRatio, Color, Opacity, Rect, Size, Stroke, StrokeMiterlimit, StrokeWidth};
 
-use crate::pages::Pages;
+use crate::{pages::Pages, KanjiToPngErrors};
 
-pub fn kanji_to_png(pages: &mut Pages, path: &str) {
+pub fn kanji_to_png(pages: &mut Pages, path: &str) -> Result<(), KanjiToPngErrors> {
     let grid =
         image::load_from_memory_with_format(Pages::BYTES_GRID, image::ImageFormat::Png).unwrap();
-    // let svg_data = std::fs::read("assets/svg/04eee.svg").unwrap();
-    // TODO fix this unwrap, return result, api returns which kanji were skipped
-    let svg_data = std::fs::read(path).unwrap();
+
+    let svg_data = std::fs::read(path).map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            KanjiToPngErrors::FileNotFound
+        } else {
+            KanjiToPngErrors::Undefined
+        }
+    })?;
     let mut opt = usvg::Options::default();
     opt.fontdb.load_system_fonts();
-    let rtree = usvg::Tree::from_data(&svg_data, &opt.to_ref()).unwrap();
+    let rtree =
+        usvg::Tree::from_data(&svg_data, &opt.to_ref()).map_err(|_| KanjiToPngErrors::Undefined)?;
 
     // These unwraps should be okay, we're using handwritten stuff anyway
     let tree2 = usvg::Tree::create(usvg::Svg {
@@ -26,7 +32,7 @@ pub fn kanji_to_png(pages: &mut Pages, path: &str) {
         },
     });
 
-    pages.draw_full_opaque(&svg_data, 1);
+    pages.draw_full_opaque(&svg_data, 1)?;
 
     for mut node in rtree.root().descendants() {
         tree2.root().append(node.make_copy());
@@ -34,6 +40,7 @@ pub fn kanji_to_png(pages: &mut Pages, path: &str) {
         if let usvg::NodeKind::Path(ref mut _path) = *node.borrow_mut() {
             if let usvg::NodeKind::Path(ref mut path2) =
                 *tree2.root().last_child().unwrap().borrow_mut()
+            // OK unwrap, works on all kanji, makes sense anyway
             {
                 path2.stroke = Some(Stroke {
                     paint: usvg::Paint::Color(Color::new_rgb(138, 152, 155)), // Change the paint per stroke???
@@ -82,6 +89,7 @@ pub fn kanji_to_png(pages: &mut Pages, path: &str) {
 
     pages.draw_clean_squares(Pages::N_SQUARE_PER_LINE);
     pages.new_line(20);
+    Ok(())
 }
 
 pub fn create_pdf(pages: &Pages, list: &str) {

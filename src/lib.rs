@@ -11,3 +11,9 @@ pub fn find_free_port() -> Option<u16> {
 pub async fn launch_browser(url: &str) {
     if webbrowser::open(url).is_ok() {}
 }
+
+#[derive(PartialEq, Eq)]
+pub enum KanjiToPngErrors {
+    FileNotFound,
+    Undefined,
+}

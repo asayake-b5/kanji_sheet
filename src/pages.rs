@@ -1,6 +1,8 @@
 use image::{DynamicImage, ImageBuffer, Rgba};
 use usvg::{Color, Opacity, Stroke, StrokeMiterlimit, StrokeWidth};
 
+use crate::KanjiToPngErrors;
+
 #[derive(Eq, PartialEq, Debug)]
 pub enum Overflow {
     None,
@@ -104,11 +106,12 @@ impl Pages {
         self.draw_svg(grid, svg_img);
     }
 
-    pub fn draw_full_opaque(&mut self, svg_data: &[u8], i: u32) {
+    pub fn draw_full_opaque(&mut self, svg_data: &[u8], i: u32) -> Result<(), KanjiToPngErrors> {
         // let blank = image::load_from_memory_with_format(BLANK_BYTES, image::ImageFormat::Png).unwrap();
         let mut opt = usvg::Options::default();
         opt.fontdb.load_system_fonts();
-        let tree = usvg::Tree::from_data(svg_data, &opt.to_ref()).unwrap();
+        let tree = usvg::Tree::from_data(svg_data, &opt.to_ref())
+            .map_err(|_| KanjiToPngErrors::Undefined)?;
         for mut node in tree.root().descendants() {
             if let usvg::NodeKind::Path(ref mut path) = *node.borrow_mut() {
                 path.stroke = Some(Stroke {
@@ -140,6 +143,7 @@ impl Pages {
 
             self.next();
         }
+        Ok(())
     }
 
     pub fn new_line(&mut self, gap: u32) {
