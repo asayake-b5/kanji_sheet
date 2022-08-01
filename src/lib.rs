@@ -9,6 +9,7 @@ pub fn find_free_port() -> Option<u16> {
 }
 
 pub async fn launch_browser(url: &str) {
+    std::thread::sleep(std::time::Duration::from_millis(300));
     if webbrowser::open(url).is_ok() {}
 }
 
