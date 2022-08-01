@@ -1,7 +1,4 @@
-use std::{
-    future,
-    io::{Cursor, Read, Write},
-};
+use std::io::{Cursor, Read, Write};
 
 use actix_cors::Cors;
 use actix_files::Files;
@@ -85,7 +82,7 @@ async fn compress(pages: &Pages, pdf: bool, png: bool, kanjis: &str) -> std::io:
     Ok(writer.into_inner())
 }
 
-fn create_pages(kanjis: &str) -> Pages {
+fn create_pages(kanjis: &str) -> (Pages, Vec<char>) {
     let mut pages = Pages::default();
     pages.add_page();
     let mut skipped_kanji = Vec::<char>::with_capacity(10);
@@ -97,18 +94,17 @@ fn create_pages(kanjis: &str) -> Pages {
             }
         }
     }
-    pages
+    (pages, skipped_kanji)
 }
 
 async fn process_web(_: HttpRequest, req: web::Json<KanjiRequest>) -> impl Responder {
-    dbg!(&req);
     let kanjis = req
         .kanjis
         .chars()
         .filter(|c| !c.is_whitespace())
         .collect::<String>();
     let time = std::time::Instant::now();
-    let pages = create_pages(&kanjis);
+    let (pages, skipped_kanji) = create_pages(&kanjis);
     println!("processed in {:?}", time.elapsed());
     let (content_type, data) = if req.pdf && !req.png {
         create_pdf(&pages, &kanjis);
@@ -128,6 +124,10 @@ async fn process_web(_: HttpRequest, req: web::Json<KanjiRequest>) -> impl Respo
     HttpResponse::Ok()
         .insert_header(("Content-Type", content_type))
         .insert_header(("Access-Control-Allow-Origin", "*"))
+        .insert_header((
+            "X-Skipped-Kanji",
+            skipped_kanji.into_iter().collect::<String>(),
+        ))
         .body(data)
 }
 
@@ -177,7 +177,12 @@ async fn main() -> std::result::Result<(), std::io::Error> {
             result
         }
         Commands::Cli { kanjis, pdf, files } => {
-            let pages = create_pages(&kanjis);
+            let (pages, skipped_kanji) = create_pages(&kanjis);
+            println!(
+                "The following kanji were skipped, as they were not found in the KanjiVG Database: \n {:?}",
+                skipped_kanji
+            );
+
             if files {
                 pages.save_pages(&kanjis);
             }
