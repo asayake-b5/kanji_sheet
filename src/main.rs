@@ -7,13 +7,7 @@ use actix_web::{
 };
 use clap::{Parser, Subcommand};
 use image::ImageOutputFormat;
-use kanji_practice_sheet::{
-    arg_parsing::kanji_to_filename,
-    find_free_port,
-    pages::Pages,
-    pdf_creation::{create_pdf, kanji_to_png},
-    KanjiToPngErrors,
-};
+use kanji_practice_sheet::{create_pages, find_free_port, pages::Pages, pdf_creation::create_pdf};
 use serde::Deserialize;
 use zip::{write::FileOptions, CompressionMethod};
 
@@ -82,21 +76,6 @@ async fn compress(pages: &Pages, pdf: bool, png: bool, kanjis: &str) -> std::io:
 
     let writer = zip.finish()?;
     Ok(writer.into_inner())
-}
-
-fn create_pages(kanjis: &str) -> (Pages, Vec<char>) {
-    let mut pages = Pages::default();
-    pages.add_page();
-    let mut skipped_kanji = Vec::<char>::with_capacity(10);
-
-    for kanji in kanjis.chars() {
-        if let Err(e) = kanji_to_png(&mut pages, &kanji_to_filename(kanji)) {
-            if e == KanjiToPngErrors::FileNotFound {
-                skipped_kanji.push(kanji);
-            }
-        }
-    }
-    (pages, skipped_kanji)
 }
 
 async fn process_web(_: HttpRequest, req: web::Json<KanjiRequest>) -> impl Responder {
