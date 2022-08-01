@@ -103,19 +103,23 @@ async fn process_web(_: HttpRequest, req: web::Json<KanjiRequest>) -> impl Respo
         .chars()
         .filter(|c| !c.is_whitespace())
         .collect::<String>();
+
+    // Pick the 20 first kanjis or the whole thing
+    let upper = std::cmp::min(20, kanjis.len());
+    let kanjis = &kanjis.chars().take(upper).collect::<String>();
     let time = std::time::Instant::now();
-    let (pages, skipped_kanji) = create_pages(&kanjis);
+    let (pages, skipped_kanji) = create_pages(kanjis);
     println!("processed in {:?}", time.elapsed());
     let (content_type, data) = if req.pdf && !req.png {
-        create_pdf(&pages, &kanjis);
+        create_pdf(&pages, kanjis);
         let mut b = Vec::with_capacity(20000);
-        let mut file = std::fs::File::open(&format!("out/{}.pdf", &kanjis)).unwrap();
+        let mut file = std::fs::File::open(&format!("out/{}.pdf", kanjis)).unwrap();
         file.read_to_end(&mut b).unwrap();
         ("application/pdf", b)
     } else {
         (
             "application/zip",
-            compress(&pages, req.pdf, req.png, &kanjis).await.unwrap(),
+            compress(&pages, req.pdf, req.png, kanjis).await.unwrap(),
         )
     };
 
