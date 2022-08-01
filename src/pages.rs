@@ -15,6 +15,9 @@ pub struct Pages {
     y: u32,
     layer: usize,
     pub imgs: Vec<DynamicImage>,
+    blank: DynamicImage,
+    blank_sheet: DynamicImage,
+    pub grid: DynamicImage,
 }
 
 impl Pages {
@@ -66,44 +69,37 @@ impl Pages {
     }
 
     pub fn add_page(&mut self) {
-        self.imgs.push(
-            image::load_from_memory_with_format(Pages::BYTES, image::ImageFormat::Png).unwrap(),
-        );
+        self.imgs.push(self.blank_sheet.clone());
     }
 
     pub fn save_pages(&self, list: &str) {
-        let blank_sheet =
-            image::load_from_memory_with_format(Pages::BYTES, image::ImageFormat::Png).unwrap();
-
         std::fs::create_dir_all(&format!("out/{}", list)).unwrap();
         for (i, img) in self.imgs.iter().enumerate() {
-            if img != &blank_sheet {
+            if img != &self.blank_sheet {
                 img.save(&format!("out/{}/page-{}.png", list, i)).unwrap();
             }
         }
     }
 
-    pub fn draw_svg(&mut self, grid: &DynamicImage, svg_img: &ImageBuffer<Rgba<u8>, &[u8]>) {
-        image::imageops::overlay(&mut self.imgs[self.layer], grid, self.x, self.y);
+    pub fn draw_svg(&mut self, svg_img: &ImageBuffer<Rgba<u8>, &[u8]>) {
+        image::imageops::overlay(&mut self.imgs[self.layer], &self.grid, self.x, self.y);
         image::imageops::overlay(&mut self.imgs[self.layer], svg_img, self.x + 3, self.y + 3);
         self.next();
     }
 
     pub fn draw_clean_squares(&mut self, i: u32) {
-        let blank =
-            image::load_from_memory_with_format(Pages::BLANK_BYTES, image::ImageFormat::Png)
-                .unwrap();
         for _ in 0..i {
-            image::imageops::overlay(&mut self.imgs[self.layer], &blank, self.x, self.y);
+            // TODO multithreading here? make n+i coord calculuator, then update the n at the end
+            image::imageops::overlay(&mut self.imgs[self.layer], &self.blank, self.x, self.y);
             self.next();
         }
     }
 
-    pub fn fill_line(&mut self, grid: &DynamicImage, svg_img: &ImageBuffer<Rgba<u8>, &[u8]>) {
+    pub fn fill_line(&mut self, svg_img: &ImageBuffer<Rgba<u8>, &[u8]>) {
         while self.peek_next() == Overflow::None {
-            self.draw_svg(grid, svg_img);
+            self.draw_svg(svg_img);
         }
-        self.draw_svg(grid, svg_img);
+        self.draw_svg(svg_img);
     }
 
     pub fn draw_full_opaque(&mut self, svg_data: &[u8], i: u32) -> Result<(), KanjiToPngErrors> {
@@ -159,7 +155,18 @@ impl Pages {
 
 impl Default for Pages {
     fn default() -> Self {
+        let blank =
+            image::load_from_memory_with_format(Pages::BLANK_BYTES, image::ImageFormat::Png)
+                .unwrap();
+        let blank_sheet =
+            image::load_from_memory_with_format(Pages::BYTES, image::ImageFormat::Png).unwrap();
+        let grid = image::load_from_memory_with_format(Pages::BYTES_GRID, image::ImageFormat::Png)
+            .unwrap();
+
         Self {
+            grid,
+            blank,
+            blank_sheet,
             x: Pages::X_OFFSET,
             y: Pages::Y_OFFSET,
             layer: 0,

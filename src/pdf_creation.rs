@@ -3,9 +3,6 @@ use usvg::{Align, AspectRatio, Color, Opacity, Rect, Size, Stroke, StrokeMiterli
 use crate::{pages::Pages, KanjiToPngErrors};
 
 pub fn kanji_to_png(pages: &mut Pages, path: &str) -> Result<(), KanjiToPngErrors> {
-    let grid =
-        image::load_from_memory_with_format(Pages::BYTES_GRID, image::ImageFormat::Png).unwrap();
-
     let svg_data = std::fs::read(path).map_err(|e| {
         if e.kind() == std::io::ErrorKind::NotFound {
             KanjiToPngErrors::FileNotFound
@@ -70,7 +67,7 @@ pub fn kanji_to_png(pages: &mut Pages, path: &str) -> Result<(), KanjiToPngError
             // let (x, y, layer) = calculate_top_left(*n);
             // image::imageops::overlay(&mut imgs[layer], &grid, x, y);
             // image::imageops::overlay(&mut pages.imgs[0], &svg_img, 3, 3);
-            pages.draw_svg(&grid, &svg_img);
+            pages.draw_svg(&svg_img);
         }
     }
 
@@ -85,7 +82,7 @@ pub fn kanji_to_png(pages: &mut Pages, path: &str) -> Result<(), KanjiToPngError
     .unwrap();
     let svg_img =
         image::ImageBuffer::from_raw(Pages::VIEWBOX_U, Pages::VIEWBOX_U, pixmap.data()).unwrap();
-    pages.fill_line(&grid, &svg_img);
+    pages.fill_line(&svg_img);
 
     pages.draw_clean_squares(Pages::N_SQUARE_PER_LINE);
     pages.new_line(20);
