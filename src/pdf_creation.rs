@@ -10,10 +10,8 @@ pub fn kanji_to_png(pages: &mut Pages, path: &str) -> Result<(), KanjiToPngError
             KanjiToPngErrors::Undefined
         }
     })?;
-    let mut opt = usvg::Options::default();
-    opt.fontdb.load_system_fonts();
-    let rtree =
-        usvg::Tree::from_data(&svg_data, &opt.to_ref()).map_err(|_| KanjiToPngErrors::Undefined)?;
+    let rtree = usvg::Tree::from_data(&svg_data, &pages.opt.to_ref())
+        .map_err(|_| KanjiToPngErrors::Undefined)?;
 
     // These unwraps should be okay, we're using handwritten stuff anyway
     let tree2 = usvg::Tree::create(usvg::Svg {

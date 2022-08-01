@@ -18,6 +18,7 @@ pub struct Pages {
     blank: DynamicImage,
     blank_sheet: DynamicImage,
     pub grid: DynamicImage,
+    pub opt: usvg::Options,
 }
 
 impl Pages {
@@ -104,9 +105,7 @@ impl Pages {
 
     pub fn draw_full_opaque(&mut self, svg_data: &[u8], i: u32) -> Result<(), KanjiToPngErrors> {
         // let blank = image::load_from_memory_with_format(BLANK_BYTES, image::ImageFormat::Png).unwrap();
-        let mut opt = usvg::Options::default();
-        opt.fontdb.load_system_fonts();
-        let tree = usvg::Tree::from_data(svg_data, &opt.to_ref())
+        let tree = usvg::Tree::from_data(svg_data, &self.opt.to_ref())
             .map_err(|_| KanjiToPngErrors::Undefined)?;
         for mut node in tree.root().descendants() {
             if let usvg::NodeKind::Path(ref mut path) = *node.borrow_mut() {
@@ -163,7 +162,11 @@ impl Default for Pages {
         let grid = image::load_from_memory_with_format(Pages::BYTES_GRID, image::ImageFormat::Png)
             .unwrap();
 
+        let mut opt = usvg::Options::default();
+        opt.fontdb.load_system_fonts();
+
         Self {
+            opt,
             grid,
             blank,
             blank_sheet,
