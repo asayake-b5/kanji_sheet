@@ -74,9 +74,11 @@ async fn compress(pages: &Pages, pdf: bool, png: bool, kanjis: &str) -> std::io:
     if pdf {
         create_pdf(pages, kanjis);
         zip.start_file("result.pdf", options)?;
+        let path = format!("out/{kanjis}.pdf");
         let mut b = Vec::with_capacity(20000);
-        let mut file = std::fs::File::open(&format!("out/{kanjis}.pdf")).unwrap();
+        let mut file = std::fs::File::open(&path)?;
         file.read_to_end(&mut b)?;
+        let _ = std::fs::remove_file(&path);
         zip.write_all(&b)?;
     }
 
@@ -102,9 +104,12 @@ async fn process_web(_: HttpRequest, req: web::Json<KanjiRequest>) -> impl Respo
     println!("processed in {:?}", time.elapsed());
     let (content_type, data) = if req.pdf && !req.png {
         create_pdf(&pages, kanjis);
+        let filepath = format!("out/{kanjis}.pdf");
         let mut b = Vec::with_capacity(20000);
-        let mut file = std::fs::File::open(&format!("out/{}.pdf", kanjis)).unwrap();
+        let mut file = std::fs::File::open(&filepath).unwrap();
         file.read_to_end(&mut b).unwrap();
+        let _ = std::fs::remove_file(&filepath);
+
         ("application/pdf", b)
     } else {
         (
