@@ -1,4 +1,4 @@
-use std::net::TcpListener;
+use std::{collections::HashMap, net::TcpListener};
 
 use arg_parsing::kanji_to_filename;
 use pages::Pages;
@@ -36,4 +36,34 @@ pub fn create_pages(kanjis: &str, add_blank: u16, add_grid: u16) -> (Pages, Vec<
         }
     }
     (pages, skipped_kanji)
+}
+
+pub fn do_csv() -> HashMap<String, usize> {
+    let mut ret: HashMap<String, usize> = HashMap::new();
+    let mut opt = usvg::Options::default();
+    opt.fontdb.load_system_fonts();
+    for file in std::fs::read_dir("./assets/svg").unwrap().flatten() {
+        let svg_data = std::fs::read(file.path()).unwrap();
+        let rtree = usvg::Tree::from_data(&svg_data, &opt.to_ref()).unwrap();
+        let len = rtree
+            .root()
+            .descendants()
+            .filter(|descendant| {
+                if let usvg::NodeKind::Path(_) = *descendant.borrow() {
+                    true
+                } else {
+                    false
+                }
+            })
+            .count();
+        ret.insert(
+            file.path()
+                .file_stem()
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+            len,
+        );
+    }
+    ret
 }
