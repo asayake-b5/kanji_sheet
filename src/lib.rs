@@ -23,13 +23,13 @@ pub async fn launch_browser(url: &str) {
     if webbrowser::open(url).is_ok() {}
 }
 
-pub fn create_pages(kanjis: &str) -> (Pages, Vec<char>) {
+pub fn create_pages(kanjis: &str, add_blank: u16, add_grid: u16) -> (Pages, Vec<char>) {
     let mut pages = Pages::default();
     pages.add_page();
     let mut skipped_kanji = Vec::<char>::with_capacity(10);
 
     for kanji in kanjis.chars() {
-        if let Err(e) = kanji_to_png(&mut pages, &kanji_to_filename(kanji)) {
+        if let Err(e) = kanji_to_png(&mut pages, &kanji_to_filename(kanji), add_blank, add_grid) {
             if e == KanjiToPngErrors::FileNotFound {
                 skipped_kanji.push(kanji);
             }

@@ -8,7 +8,13 @@ fn criterion_benchmark(c: &mut Criterion) {
         .sample_size(50)
         .measurement_time(Duration::from_millis(52000));
     group.bench_function("10kanji", |b| {
-        b.iter(|| kanji_practice_sheet::create_pages(black_box("鬱知春項垂暗殺空想缶")))
+        b.iter(|| {
+            kanji_practice_sheet::create_pages(
+                black_box("鬱知春項垂暗殺空想缶"),
+                black_box(0),
+                black_box(0),
+            )
+        })
     });
     group.finish();
 }

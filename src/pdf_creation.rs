@@ -1,8 +1,16 @@
 use usvg::{Align, AspectRatio, Color, Opacity, Rect, Size, Stroke, StrokeMiterlimit, StrokeWidth};
 
-use crate::{pages::Pages, KanjiToPngErrors};
+use crate::{
+    pages::{BgType, Pages},
+    KanjiToPngErrors,
+};
 
-pub fn kanji_to_png(pages: &mut Pages, path: &str) -> Result<(), KanjiToPngErrors> {
+pub fn kanji_to_png(
+    pages: &mut Pages,
+    path: &str,
+    add_blank: u16,
+    add_grid: u16,
+) -> Result<(), KanjiToPngErrors> {
     let svg_data = std::fs::read(path).map_err(|e| {
         if e.kind() == std::io::ErrorKind::NotFound {
             KanjiToPngErrors::FileNotFound
@@ -82,7 +90,8 @@ pub fn kanji_to_png(pages: &mut Pages, path: &str) -> Result<(), KanjiToPngError
         image::ImageBuffer::from_raw(Pages::VIEWBOX_U, Pages::VIEWBOX_U, pixmap.data()).unwrap();
     pages.fill_line(&svg_img);
 
-    pages.draw_clean_squares(Pages::N_SQUARE_PER_LINE);
+    pages.draw_n_full_lines(BgType::Grid, add_grid);
+    pages.draw_n_full_lines(BgType::Blank, add_blank);
     pages.new_line(20);
     Ok(())
 }

@@ -34,12 +34,18 @@ enum Commands {
         pdf: bool,
         #[clap(short, long, default_value_t = true)]
         files: bool,
+        #[clap(short, long, default_value_t = 0)]
+        blank: u16,
+        #[clap(short, long, default_value_t = 0)]
+        grid: u16,
     },
 }
 
 #[derive(Debug, Deserialize)]
 struct KanjiRequest {
     kanjis: String,
+    extra_grid: u16,
+    extra_blank: u16,
     pdf: bool,
     png: bool,
     opt_space: bool,
@@ -85,11 +91,14 @@ async fn process_web(_: HttpRequest, req: web::Json<KanjiRequest>) -> impl Respo
         .filter(|c| !c.is_whitespace())
         .collect::<String>();
 
+    let add_grid = std::cmp::max(0, req.extra_grid);
+    let add_blank = std::cmp::max(0, req.extra_blank);
+
     // Pick the 20 first kanjis or the whole thing
     let upper = std::cmp::min(20, kanjis.len());
     let kanjis = &kanjis.chars().take(upper).collect::<String>();
     let time = std::time::Instant::now();
-    let (pages, skipped_kanji) = create_pages(kanjis);
+    let (pages, skipped_kanji) = create_pages(kanjis, add_blank, add_grid);
     println!("processed in {:?}", time.elapsed());
     let (content_type, data) = if req.pdf && !req.png {
         create_pdf(&pages, kanjis);
@@ -162,8 +171,14 @@ async fn main() -> std::result::Result<(), std::io::Error> {
                 tokio::join!(server_future, kanji_practice_sheet::launch_browser(&url));
             result
         }
-        Commands::Cli { kanjis, pdf, files } => {
-            let (pages, skipped_kanji) = create_pages(&kanjis);
+        Commands::Cli {
+            kanjis,
+            pdf,
+            files,
+            blank,
+            grid,
+        } => {
+            let (pages, skipped_kanji) = create_pages(&kanjis, blank, grid);
             println!(
                 "The following kanji were skipped, as they were not found in the KanjiVG Database: \n {:?}",
                 skipped_kanji

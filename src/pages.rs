@@ -10,14 +10,21 @@ pub enum Overflow {
     ChangedPage,
 }
 
+pub enum BgType {
+    Blank,
+    Grid,
+}
+
 pub struct Pages {
     x: u32,
     y: u32,
     layer: usize,
     pub imgs: Vec<DynamicImage>,
     blank: DynamicImage,
+    blank_line: DynamicImage,
     blank_sheet: DynamicImage,
     pub grid: DynamicImage,
+    grid_line: DynamicImage,
     pub opt: usvg::Options,
 }
 
@@ -88,6 +95,27 @@ impl Pages {
         self.next();
     }
 
+    fn draw_n_full_grid(&mut self, n: u16) {
+        for _ in 0..n {
+            image::imageops::overlay(&mut self.imgs[self.layer], &self.grid_line, self.x, self.y);
+            self.new_line(114);
+        }
+    }
+
+    fn draw_n_full_blank(&mut self, n: u16) {
+        for _ in 0..n {
+            image::imageops::overlay(&mut self.imgs[self.layer], &self.blank_line, self.x, self.y);
+            self.new_line(114);
+        }
+    }
+
+    pub fn draw_n_full_lines(&mut self, bg_type: BgType, n: u16) {
+        match bg_type {
+            BgType::Blank => self.draw_n_full_blank(n),
+            BgType::Grid => self.draw_n_full_grid(n),
+        };
+    }
+
     pub fn draw_clean_squares(&mut self, i: u32) {
         for _ in 0..i {
             // TODO multithreading here? make n+i coord calculuator, then update the n at the end
@@ -144,11 +172,23 @@ impl Pages {
     pub fn new_line(&mut self, gap: u32) {
         self.x = Pages::X_OFFSET;
         self.y += gap;
-        if self.y > Pages::HEIGHT {
+        if self.y + 114 > Pages::HEIGHT - Pages::Y_OFFSET {
             self.add_page();
             self.layer += 1;
             self.y = Pages::Y_OFFSET;
         }
+    }
+
+    fn prepare(bg_type: &DynamicImage) -> DynamicImage {
+        let mut image = DynamicImage::new_rgba8(Pages::WIDTH, Pages::VIEWBOX_U + 30);
+        let mut x = 0;
+
+        for _ in 0..Pages::N_SQUARE_PER_LINE {
+            image::imageops::overlay(&mut image, bg_type, x, 0);
+            x += 114;
+        }
+
+        image
     }
 }
 
@@ -165,11 +205,16 @@ impl Default for Pages {
         let mut opt = usvg::Options::default();
         opt.fontdb.load_system_fonts();
 
+        let blank_line = Pages::prepare(&blank);
+        let grid_line = Pages::prepare(&grid);
+
         Self {
             opt,
             grid,
             blank,
             blank_sheet,
+            blank_line,
+            grid_line,
             x: Pages::X_OFFSET,
             y: Pages::Y_OFFSET,
             layer: 0,
