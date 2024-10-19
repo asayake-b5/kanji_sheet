@@ -2,7 +2,7 @@ use usvg::{Align, AspectRatio, Color, Opacity, Rect, Size, Stroke, StrokeMiterli
 
 use crate::{
     pages::{BgType, Pages},
-    KanjiToPngErrors,
+    Globals, KanjiToPngErrors,
 };
 
 pub fn kanji_to_png(
@@ -10,15 +10,21 @@ pub fn kanji_to_png(
     path: &str,
     add_blank: u16,
     add_grid: u16,
+    data: Globals,
 ) -> Result<(), KanjiToPngErrors> {
-    let svg_data = std::fs::read(path).map_err(|e| {
-        if e.kind() == std::io::ErrorKind::NotFound {
-            KanjiToPngErrors::FileNotFound
-        } else {
-            KanjiToPngErrors::Undefined
-        }
-    })?;
-    let rtree = usvg::Tree::from_data(&svg_data, &pages.opt.to_ref())
+    // let svg_data = std::fs::read(path).map_err(|e| {
+    //     if e.kind() == std::io::ErrorKind::NotFound {
+    //         KanjiToPngErrors::FileNotFound
+    //     } else {
+    //         KanjiToPngErrors::Undefined
+    //     }
+    // })?;
+    let svgs = &data.svgs;
+    let svg_data = svgs
+        .get(path)
+        .ok_or(KanjiToPngErrors::FileNotFound)?
+        .as_ref();
+    let rtree = usvg::Tree::from_data(svg_data, &pages.opt.to_ref())
         .map_err(|_| KanjiToPngErrors::Undefined)?;
 
     // These unwraps should be okay, we're using handwritten stuff anyway
@@ -35,7 +41,7 @@ pub fn kanji_to_png(
         },
     });
 
-    pages.draw_full_opaque(&svg_data, 1)?;
+    pages.draw_full_opaque(svg_data, 1)?;
 
     for mut node in rtree.root().descendants() {
         tree2.root().append(node.make_copy());
@@ -96,7 +102,7 @@ pub fn kanji_to_png(
     Ok(())
 }
 
-pub fn create_pdf(pages: &Pages, list: &str) {
+pub fn create_pdf(pages: &Pages, list: &str, timestamp: u128) {
     let font_family = genpdf::fonts::from_files("./assets/font/", "Courier", None).unwrap();
     let mut doc = genpdf::Document::new(font_family);
     doc.set_title(list);
@@ -108,5 +114,6 @@ pub fn create_pdf(pages: &Pages, list: &str) {
                 .with_dpi(160.0),
         );
     }
-    doc.render_to_file(&format!("out/{}.pdf", list)).unwrap();
+    doc.render_to_file(&format!("out/{timestamp}/file.pdf"))
+        .unwrap();
 }

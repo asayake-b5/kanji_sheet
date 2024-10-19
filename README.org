@@ -1,11 +1,13 @@
 * Kanji Writing Practice Sheet Generator
 
-This simple project generates pdfs/pngs of practice sheets for kanji writing. A CLI tool as well as a webserver are provided in the same executable.
-
-* How to use
-**** TODO Fill this
+This simple project generates pdfs/pngs of practice sheets for kanji writing.
 
 * Credits
 This project is made possible majoritarily thanks to the great work by the [[https://kanjivg.tagaini.net/index.html][KanjiVG Team (© 2009-2012 Ulrich Apel)]], who graciously lend their SVG data under the [[http://creativecommons.org/licenses/by-sa/3.0/][Creative Commons BY-SA License]] and made this project possible.
 
-One small change was made to make these SVGs compatible with the rust library [[https://github.com/RazrFalcon/resvg][=resvg=]] (by removing the namespaced content, using a =sed= one liner). The modified files are provided under the same license as per the terms of the CC BY-SA license.
+One small change was made to make these SVGs compatible with the rust library [[https://github.com/RazrFalcon/resvg][resvg]] (by removing the namespaced content, using a =sed= one liner). The modified files are provided under the same license as per the terms of the CC BY-SA license.
+
+* Licensing
+GPLv3. You're free to do whatever you want with it, feel free to modify it to suit your needs (change the page layout/appearance for instance).
+
+Don't use this to generate for-a-price sheets.

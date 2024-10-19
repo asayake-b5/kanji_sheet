@@ -4,21 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-utf16string = "0.2.0"
 image = "0.23.14"
-svg = "0.10.0"
 tiny-skia = "0.6.1"
 resvg = "0.23.0"
 usvg = "0.23.0"
 xmlwriter = "0.1.0"
-clap = { version = "3.2.8", features = ["derive"] } # Argument Parsing
 genpdf = { version = "0.2.0", features = ["images"] }
-actix-web = "4.1.0"
-tokio = {version = "1", features = ["macros", "rt-multi-thread", "fs"]}
-serde = {version = "1.0.138", features = ["derive"]}
-actix-files = "0.6.1"
-zip = "0.6.2"
-webbrowser = "0.7.1"
+relm4 = "0.6.2"
+open = "5.3.0"
+
 
 [dev-dependencies]
 criterion = "0.3"
