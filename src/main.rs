@@ -95,10 +95,7 @@ impl SimpleComponent for AppModel {
                     _opt_space: false, //TODO what even was this
                     _coloring: None,
                 };
-                self.worker
-                    .sender()
-                    .send(AsyncHandlerMsg::Start(k))
-                    .unwrap();
+                let _ = self.worker.sender().send(AsyncHandlerMsg::Start(k));
             }
             AppInMsg::End => {
                 self.sensitive = true;

@@ -25,13 +25,15 @@ pub fn kanji_to_png(
         .ok_or(KanjiToPngErrors::FileNotFound)?
         .as_ref();
     let rtree = usvg::Tree::from_data(svg_data, &pages.opt.to_ref())
-        .map_err(|_| KanjiToPngErrors::Undefined)?;
+        .map_err(|_| KanjiToPngErrors::UnlikelyError)?;
 
     // These unwraps should be okay, we're using handwritten stuff anyway
     let tree2 = usvg::Tree::create(usvg::Svg {
-        size: Size::new(Pages::VIEWBOX_F, Pages::VIEWBOX_F).unwrap(),
+        size: Size::new(Pages::VIEWBOX_F, Pages::VIEWBOX_F)
+            .ok_or(KanjiToPngErrors::UnlikelyError)?,
         view_box: usvg::ViewBox {
-            rect: Rect::new(0.0, 0.0, Pages::VIEWBOX_F, Pages::VIEWBOX_F).unwrap(),
+            rect: Rect::new(0.0, 0.0, Pages::VIEWBOX_F, Pages::VIEWBOX_F)
+                .ok_or(KanjiToPngErrors::UnlikelyError)?,
             aspect: AspectRatio {
                 // ??? to all three
                 defer: false,
@@ -47,8 +49,11 @@ pub fn kanji_to_png(
         tree2.root().append(node.make_copy());
 
         if let usvg::NodeKind::Path(ref mut _path) = *node.borrow_mut() {
-            if let usvg::NodeKind::Path(ref mut path2) =
-                *tree2.root().last_child().unwrap().borrow_mut()
+            if let usvg::NodeKind::Path(ref mut path2) = *tree2
+                .root()
+                .last_child()
+                .ok_or(KanjiToPngErrors::UnlikelyError)?
+                .borrow_mut()
             // OK unwrap, works on all kanji, makes sense anyway
             {
                 path2.stroke = Some(Stroke {
@@ -64,18 +69,18 @@ pub fn kanji_to_png(
             }
             // costs 1microsecond perd run, don't optimize
             let pixmap_size = tree2.svg_node().size.to_screen_size();
-            let mut pixmap =
-                tiny_skia::Pixmap::new(pixmap_size.width(), pixmap_size.height()).unwrap();
+            let mut pixmap = tiny_skia::Pixmap::new(pixmap_size.width(), pixmap_size.height())
+                .ok_or(KanjiToPngErrors::UnlikelyError)?;
             resvg::render(
                 &tree2,
                 usvg::FitTo::Original,
                 tiny_skia::Transform::default(),
                 pixmap.as_mut(),
             )
-            .unwrap();
+            .ok_or(KanjiToPngErrors::UnlikelyError)?;
             let svg_img =
                 image::ImageBuffer::from_raw(Pages::VIEWBOX_U, Pages::VIEWBOX_U, pixmap.data())
-                    .unwrap();
+                    .ok_or(KanjiToPngErrors::UnlikelyError)?;
             // let (x, y, layer) = calculate_top_left(*n);
             // image::imageops::overlay(&mut imgs[layer], &grid, x, y);
             // image::imageops::overlay(&mut pages.imgs[0], &svg_img, 3, 3);
@@ -84,16 +89,17 @@ pub fn kanji_to_png(
     }
 
     let pixmap_size = tree2.svg_node().size.to_screen_size();
-    let mut pixmap = tiny_skia::Pixmap::new(pixmap_size.width(), pixmap_size.height()).unwrap();
+    let mut pixmap = tiny_skia::Pixmap::new(pixmap_size.width(), pixmap_size.height())
+        .ok_or(KanjiToPngErrors::Undefined)?;
     resvg::render(
         &tree2,
         usvg::FitTo::Original,
         tiny_skia::Transform::default(),
         pixmap.as_mut(),
     )
-    .unwrap();
-    let svg_img =
-        image::ImageBuffer::from_raw(Pages::VIEWBOX_U, Pages::VIEWBOX_U, pixmap.data()).unwrap();
+    .ok_or(KanjiToPngErrors::Undefined)?;
+    let svg_img = image::ImageBuffer::from_raw(Pages::VIEWBOX_U, Pages::VIEWBOX_U, pixmap.data())
+        .ok_or(KanjiToPngErrors::Undefined)?;
     pages.fill_line(&svg_img);
 
     pages.draw_n_full_lines(BgType::Grid, add_grid);
@@ -102,18 +108,20 @@ pub fn kanji_to_png(
     Ok(())
 }
 
-pub fn create_pdf(pages: &Pages, list: &str, timestamp: u128) {
-    let font_family = genpdf::fonts::from_files("./assets/font/", "Courier", None).unwrap();
+pub fn create_pdf(pages: &Pages, list: &str, timestamp: u128) -> Result<(), KanjiToPngErrors> {
+    let font_family = genpdf::fonts::from_files("./assets/font/", "Courier", None)
+        .map_err(|_| KanjiToPngErrors::LoadFontError)?;
     let mut doc = genpdf::Document::new(font_family);
     doc.set_title(list);
     for img in &pages.imgs {
         let rgb8 = image::DynamicImage::ImageRgb8(img.to_rgb8());
         doc.push(
             genpdf::elements::Image::from_dynamic_image(rgb8)
-                .unwrap()
+                .map_err(|_| KanjiToPngErrors::UnlikelyError)?
                 .with_dpi(160.0),
         );
     }
     doc.render_to_file(&format!("out/{timestamp}/file.pdf"))
-        .unwrap();
+        .map_err(|_| KanjiToPngErrors::Undefined)?;
+    Ok(())
 }

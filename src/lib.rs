@@ -18,8 +18,10 @@ pub struct Globals {
 
 #[derive(PartialEq, Eq)]
 pub enum KanjiToPngErrors {
+    LoadFontError,
     FileNotFound,
     Undefined,
+    UnlikelyError,
 }
 
 pub fn create_pages(
@@ -27,15 +29,14 @@ pub fn create_pages(
     add_blank: u16,
     add_grid: u16,
     data: Globals,
-) -> (Pages, Vec<char>) {
-    let mut pages = Pages::default();
+) -> Result<(Pages, Vec<char>), KanjiToPngErrors> {
+    let mut pages = Pages::new()?;
     pages.add_page();
     let mut skipped_kanji = Vec::<char>::with_capacity(10);
 
     for kanji in kanjis.chars() {
         if let Err(e) = kanji_to_png(
             &mut pages,
-            // &kanji_to_filename(kanji),
             &kanji_to_hexcode(kanji),
             add_blank,
             add_grid,
@@ -46,7 +47,7 @@ pub fn create_pages(
             }
         }
     }
-    (pages, skipped_kanji)
+    Ok((pages, skipped_kanji))
 }
 
 pub fn do_csv() -> HashMap<String, usize> {

@@ -12,6 +12,7 @@ xmlwriter = "0.1.0"
 genpdf = { version = "0.2.0", features = ["images"] }
 relm4 = "0.6.2"
 open = "5.3.0"
+anyhow = "1.0.90"
 
 
 [dev-dependencies]

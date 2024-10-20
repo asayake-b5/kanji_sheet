@@ -20,7 +20,6 @@ pub struct Pages {
     y: u32,
     layer: usize,
     pub imgs: Vec<DynamicImage>,
-    blank: DynamicImage,
     blank_line: DynamicImage,
     blank_sheet: DynamicImage,
     pub grid: DynamicImage,
@@ -80,15 +79,6 @@ impl Pages {
         self.imgs.push(self.blank_sheet.clone());
     }
 
-    pub fn save_pages(&self, list: &str) {
-        std::fs::create_dir_all(&format!("out/{}", list)).unwrap();
-        for (i, img) in self.imgs.iter().enumerate() {
-            if img != &self.blank_sheet {
-                img.save(&format!("out/{}/page-{}.png", list, i)).unwrap();
-            }
-        }
-    }
-
     pub fn draw_svg(&mut self, svg_img: &ImageBuffer<Rgba<u8>, &[u8]>) {
         image::imageops::overlay(&mut self.imgs[self.layer], &self.grid, self.x, self.y);
         image::imageops::overlay(&mut self.imgs[self.layer], svg_img, self.x + 3, self.y + 3);
@@ -116,14 +106,6 @@ impl Pages {
         };
     }
 
-    pub fn draw_clean_squares(&mut self, i: u32) {
-        for _ in 0..i {
-            // TODO multithreading here? make n+i coord calculuator, then update the n at the end
-            image::imageops::overlay(&mut self.imgs[self.layer], &self.blank, self.x, self.y);
-            self.next();
-        }
-    }
-
     pub fn fill_line(&mut self, svg_img: &ImageBuffer<Rgba<u8>, &[u8]>) {
         while self.peek_next() == Overflow::None {
             self.draw_svg(svg_img);
@@ -132,9 +114,8 @@ impl Pages {
     }
 
     pub fn draw_full_opaque(&mut self, svg_data: &[u8], i: u32) -> Result<(), KanjiToPngErrors> {
-        // let blank = image::load_from_memory_with_format(BLANK_BYTES, image::ImageFormat::Png).unwrap();
         let tree = usvg::Tree::from_data(svg_data, &self.opt.to_ref())
-            .map_err(|_| KanjiToPngErrors::Undefined)?;
+            .map_err(|_| KanjiToPngErrors::UnlikelyError)?;
         for mut node in tree.root().descendants() {
             if let usvg::NodeKind::Path(ref mut path) = *node.borrow_mut() {
                 path.stroke = Some(Stroke {
@@ -150,17 +131,18 @@ impl Pages {
             }
         }
         let pixmap_size = tree.svg_node().size.to_screen_size();
-        let mut pixmap = tiny_skia::Pixmap::new(pixmap_size.width(), pixmap_size.height()).unwrap();
+        let mut pixmap = tiny_skia::Pixmap::new(pixmap_size.width(), pixmap_size.height())
+            .ok_or(KanjiToPngErrors::UnlikelyError)?;
         resvg::render(
             &tree,
             usvg::FitTo::Original,
             tiny_skia::Transform::default(),
             pixmap.as_mut(),
         )
-        .unwrap();
+        .ok_or(KanjiToPngErrors::UnlikelyError)?;
         let svg_img =
             image::ImageBuffer::from_raw(Pages::VIEWBOX_U, Pages::VIEWBOX_U, pixmap.data())
-                .unwrap();
+                .ok_or(KanjiToPngErrors::UnlikelyError)?;
         for _ in 0..i {
             image::imageops::overlay(&mut self.imgs[self.layer], &svg_img, self.x + 3, self.y + 3);
 
@@ -190,17 +172,17 @@ impl Pages {
 
         image
     }
-}
 
-impl Default for Pages {
-    fn default() -> Self {
+    pub fn new() -> Result<Self, KanjiToPngErrors> {
+        //None of these errors should realistically happen
         let blank =
             image::load_from_memory_with_format(Pages::BLANK_BYTES, image::ImageFormat::Png)
-                .unwrap();
+                .map_err(|_| KanjiToPngErrors::UnlikelyError)?;
         let blank_sheet =
-            image::load_from_memory_with_format(Pages::BYTES, image::ImageFormat::Png).unwrap();
+            image::load_from_memory_with_format(Pages::BYTES, image::ImageFormat::Png)
+                .map_err(|_| KanjiToPngErrors::UnlikelyError)?;
         let grid = image::load_from_memory_with_format(Pages::BYTES_GRID, image::ImageFormat::Png)
-            .unwrap();
+            .map_err(|_| KanjiToPngErrors::UnlikelyError)?;
 
         let mut opt = usvg::Options::default();
         opt.fontdb.load_system_fonts();
@@ -208,10 +190,9 @@ impl Default for Pages {
         let blank_line = Pages::prepare(&blank);
         let grid_line = Pages::prepare(&grid);
 
-        Self {
+        Ok(Self {
             opt,
             grid,
-            blank,
             blank_sheet,
             blank_line,
             grid_line,
@@ -219,6 +200,6 @@ impl Default for Pages {
             y: Pages::Y_OFFSET,
             layer: 0,
             imgs: Vec::with_capacity(8),
-        }
+        })
     }
 }
